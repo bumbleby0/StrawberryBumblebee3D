@@ -83,6 +83,13 @@ public class PlayerController : MonoBehaviour
                 rb.AddForce(Vector3.up * activeCharacter.jumpForce, ForceMode.Impulse);
             }
         }
+        // DeathOnNoHealth
+        if (activeCharacter.currentHealth < 0)
+        {
+
+        }
+
+
 
         // Self-damage on "P" key
         if (Input.GetKeyDown(KeyCode.P) && activeCharacter != null)

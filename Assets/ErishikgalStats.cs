@@ -7,18 +7,20 @@ public class ErishikgalStats : MonoBehaviour
     [Header("Core Stats")]
     public float maxHealth = 125f;
     public float currentHealth = 125f;
-    public float moveSpeed = 10f; // Matches PlayerController default
+    public float moveSpeed = 10f; 
     public float sprintSpeed = 20f; // Added sprint speed
 
-    [Header("Damage")]
+    [Header("Combat Stats")]
     public float meleeDamage = 25f;
     public float rangedDamage = 15f;
+    public float Defence = 15;
+    public float Block = 25;
+    public float BlockWalkSpeed = 5;
 
     [Header("Gravity")]
-    public float gravityScale = 1f; // Multiplier for gravity effect on Erishikgal
-
+    public float gravityScale = 0.9f; // Multiplier for gravity effect
     [Header("Jump")]
-    public float jumpForce = 7f;
+    public float jumpForce = 8f;
 
     private Rigidbody rb;
 
@@ -30,8 +32,6 @@ public class ErishikgalStats : MonoBehaviour
             rb.mass = 1f * gravityScale; // Adjust mass based on gravityScale
         }
     }
-
-    // Example method to apply gravity effect (if custom gravity is needed)
     void FixedUpdate()
     {
         if (rb != null)

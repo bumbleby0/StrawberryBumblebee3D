@@ -7,15 +7,18 @@ public class EzikielStats : MonoBehaviour
     [Header("Core Stats")]
     public float maxHealth = 125f;
     public float currentHealth = 125f;
-    public float moveSpeed = 8f; // Matches PlayerController default
+    public float moveSpeed = 8f;
     public float sprintSpeed = 15f; // Added sprint speed
 
-    [Header("Damage")]
+    [Header("Combat Stats")]
     public float meleeDamage = 40f;
     public float rangedDamage = 35f;
+    public float Defence = 20;
+    public float Block = 30;
+    public float BlockWalkSpeed = 6;
 
     [Header("Gravity")]
-    public float gravityScale = 1f; // Multiplier for gravity effect on Ezikiel
+    public float gravityScale = 1f; // Multiplier for gravity effect
 
     [Header("Jump")]
     public float jumpForce = 9f;

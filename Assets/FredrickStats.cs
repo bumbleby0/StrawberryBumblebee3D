@@ -7,15 +7,18 @@ public class FredrickStats : MonoBehaviour
     [Header("Core Stats")]
     public float maxHealth = 175f;
     public float currentHealth = 175f;
-    public float moveSpeed = 5f; // Matches PlayerController default
+    public float moveSpeed = 5f;
     public float sprintSpeed = 10f; // Added sprint speed
 
-    [Header("Damage")]
+    [Header("Combat Stats")]
     public float meleeDamage = 50f;
     public float rangedDamage = 0f;
+    public float Defence = 40;
+    public float Block = 80;
+    public float BlockWalkSpeed = 5;
 
     [Header("Gravity")]
-    public float gravityScale = 1.2f; // Multiplier for gravity effect on Erishikgal
+    public float gravityScale = 1.2f; // Multiplier for gravity effect
 
     [Header("Jump")]
     public float jumpForce = 3f;

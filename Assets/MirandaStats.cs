@@ -7,18 +7,20 @@ public class MirandaStats : MonoBehaviour
     [Header("Core Stats")]
     public float maxHealth = 50f;
     public float currentHealth = 50f;
-    public float moveSpeed = 10f; // Matches PlayerController default
+    public float moveSpeed = 10f;
     public float sprintSpeed = 20f; // Added sprint speed
 
-    [Header("Damage")]
+    [Header("Combat Stats")]
     public float meleeDamage = 7f;
     public float rangedDamage = 65f;
+    public float Defence = 5;
+    public float Block = 10;
+    public float BlockWalkSpeed = 10;
 
     [Header("Gravity")]
-    public float gravityScale = 1f; // Multiplier for gravity effect on Erishikgal
-
+    public float gravityScale = 1f; // Multiplier for gravity effect 
     [Header("Jump")]
-    public float jumpForce = 6f;
+    public float jumpForce = 8f;
 
     private Rigidbody rb;
 
