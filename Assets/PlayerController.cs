@@ -43,6 +43,26 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
+        // Set active character from CharacterSelector
+        if (!string.IsNullOrEmpty(CharacterSelector.SelectedCharacter))
+        {
+            switch (CharacterSelector.SelectedCharacter)
+            {
+                case "Fredrick":
+                    activeCharacterType = CharacterType.Fredrick;
+                    break;
+                case "Ezikiel":
+                    activeCharacterType = CharacterType.Ezikiel;
+                    break;
+                case "Erishikgal":
+                    activeCharacterType = CharacterType.Erishikgal;
+                    break;
+                case "Miranda":
+                    activeCharacterType = CharacterType.Miranda;
+                    break;
+            }
+        }
+
         rb = GetComponent<Rigidbody>();
         cam = GetComponentInChildren<Camera>();
         Cursor.lockState = CursorLockMode.Locked;
