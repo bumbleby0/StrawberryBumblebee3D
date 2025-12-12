@@ -108,10 +108,29 @@ public class PlayerController : MonoBehaviour
             }
             else if (isGrounded)
             {
-                GetRigidbody().AddForce(Vector3.up * GetJumpForce(), ForceMode.Impulse);
+                // Calculate intended horizontal velocity based on input and speed
+                float moveX = Input.GetAxisRaw("Horizontal");
+                float moveZ = Input.GetAxisRaw("Vertical");
+                Vector3 moveInput = (transform.right * moveX + transform.forward * moveZ).normalized;
+                bool canSprint = Input.GetKey(KeyCode.LeftShift);
+                float currentSpeed = canSprint ? GetSprintSpeed() : GetMoveSpeed();
+
+                Vector3 jumpVelocity;
+                if (moveInput.sqrMagnitude > 0.01f)
+                {
+                    // Use intended movement direction and speed
+                    Vector3 horizontal = moveInput * currentSpeed;
+                    jumpVelocity = new Vector3(horizontal.x, GetJumpForce(), horizontal.z);
+                }
+                else
+                {
+                    // If no input, preserve current horizontal velocity
+                    Vector3 velocity = rb.velocity;
+                    jumpVelocity = new Vector3(velocity.x, GetJumpForce(), velocity.z);
+                }
+                rb.velocity = jumpVelocity;
             }
         }
-
 
         // Self-damage on "P" key
         if (Input.GetKeyDown(KeyCode.P))
@@ -125,8 +144,10 @@ public class PlayerController : MonoBehaviour
         {
             isSliding = true;
 
-            // Calculate slide speed and duration based on current velocity
-            float entrySpeed = rb.velocity.magnitude;
+            // Use current horizontal momentum for slide speed
+            Vector3 horizontalVelocity = rb.velocity;
+            horizontalVelocity.y = 0;
+            float entrySpeed = horizontalVelocity.magnitude;
             currentSlideSpeed = Mathf.Clamp(entrySpeed, minSlideSpeed, maxSlideSpeed);
 
             // Slide duration scales with entry speed
@@ -153,7 +174,24 @@ public class PlayerController : MonoBehaviour
                 // Perform jump if queued
                 if (jumpQueued && isGrounded)
                 {
-                    GetRigidbody().AddForce(Vector3.up * GetJumpForce(), ForceMode.Impulse);
+                    float moveX = Input.GetAxisRaw("Horizontal");
+                    float moveZ = Input.GetAxisRaw("Vertical");
+                    Vector3 moveInput = (transform.right * moveX + transform.forward * moveZ).normalized;
+                    bool canSprint = Input.GetKey(KeyCode.LeftShift);
+                    float currentSpeed = canSprint ? GetSprintSpeed() : GetMoveSpeed();
+
+                    Vector3 jumpVelocity;
+                    if (moveInput.sqrMagnitude > 0.01f)
+                    {
+                        Vector3 horizontal = moveInput * currentSpeed;
+                        jumpVelocity = new Vector3(horizontal.x, GetJumpForce(), horizontal.z);
+                    }
+                    else
+                    {
+                        Vector3 velocity = rb.velocity;
+                        jumpVelocity = new Vector3(velocity.x, GetJumpForce(), velocity.z);
+                    }
+                    rb.velocity = jumpVelocity;
                 }
                 jumpQueued = false;
             }
@@ -168,16 +206,41 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
+        float moveX = Input.GetAxisRaw("Horizontal");
+        float moveZ = Input.GetAxisRaw("Vertical");
+        
+        Vector3 moveInput = (transform.right * moveX + transform.forward * moveZ).normalized;
 
-        // Only allow sprinting if grounded
         bool canSprint = isGrounded && Input.GetKey(KeyCode.LeftShift);
         float currentSpeed = isSliding ? currentSlideSpeed : (canSprint ? GetSprintSpeed() : GetMoveSpeed());
 
-        Vector3 move = (transform.right * moveX + transform.forward * moveZ).normalized * currentSpeed;
-        Vector3 newPosition = rb.position + new Vector3(move.x, 0, move.z) * Time.fixedDeltaTime;
-        rb.MovePosition(newPosition);
+        Vector3 velocity = rb.velocity;
+
+        if (isGrounded || isSliding)
+        {
+            // Use MovePosition for smooth, physics-friendly ground movement
+            if (moveInput.sqrMagnitude > 0.01f)
+            {
+                Vector3 move = moveInput * currentSpeed * Time.fixedDeltaTime;
+                rb.MovePosition(rb.position + new Vector3(move.x, 0, move.z));
+            }
+            // else: do nothing, let drag/friction stop the player naturally
+        }
+        else
+        {
+            // Air movement: allow strong air control
+            Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
+            Vector3 desiredHorizontalVelocity = moveInput * GetMoveSpeed();
+            float airControl = 1.0f; // 1.0f = instant, <1.0f = more floaty
+            Vector3 newHorizontalVelocity = Vector3.Lerp(horizontalVelocity, desiredHorizontalVelocity, airControl * Time.fixedDeltaTime);
+
+            // Optional: Clamp to max ground speed
+            float maxAirSpeed = GetMoveSpeed();
+            if (newHorizontalVelocity.magnitude > maxAirSpeed)
+                newHorizontalVelocity = newHorizontalVelocity.normalized * maxAirSpeed;
+
+            rb.velocity = new Vector3(newHorizontalVelocity.x, velocity.y, newHorizontalVelocity.z);
+        }
     }
 
     // --- Character Swapping Helpers ---

@@ -863,7 +863,7 @@ MonoBehaviour:
   fredrick: {fileID: 1314575645}
   ezikiel: {fileID: 1314575647}
   miranda: {fileID: 1314575646}
-  activeCharacterType: 1
+  activeCharacterType: 0
   uiController: {fileID: 1057050495}
   mouseSensitivity: 4
   groundCheckDistance: 0.1
