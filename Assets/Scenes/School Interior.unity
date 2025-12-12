@@ -414,6 +414,15 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1314575644}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1314575647}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1314575646}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1314575645}
   m_SourcePrefab: {fileID: 100100000, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
 --- !u!4 &338660194 stripped
 Transform:
@@ -850,7 +859,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd6c9d33076e86c47b5e36418de6ec81, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  activeCharacter: {fileID: 1314575644}
+  erishikgal: {fileID: 1314575644}
+  fredrick: {fileID: 1314575645}
+  ezikiel: {fileID: 1314575647}
+  miranda: {fileID: 1314575646}
+  activeCharacterType: 1
   uiController: {fileID: 1057050495}
   mouseSensitivity: 4
   groundCheckDistance: 0.1
@@ -914,6 +927,75 @@ MonoBehaviour:
   BlockWalkSpeed: 5
   gravityScale: 0.9
   jumpForce: 8
+--- !u!114 &1314575645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314575638}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8d5feb318cf1f142939d3b705935cad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 175
+  currentHealth: 175
+  moveSpeed: 5
+  sprintSpeed: 10
+  meleeDamage: 50
+  rangedDamage: 0
+  Defence: 40
+  Block: 80
+  BlockWalkSpeed: 5
+  gravityScale: 1.2
+  jumpForce: 3
+--- !u!114 &1314575646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314575638}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05dec8a70e918d14e992eec9e17afa72, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 50
+  currentHealth: 50
+  moveSpeed: 10
+  sprintSpeed: 20
+  meleeDamage: 7
+  rangedDamage: 65
+  Defence: 5
+  Block: 10
+  BlockWalkSpeed: 10
+  gravityScale: 1
+  jumpForce: 8
+--- !u!114 &1314575647
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314575638}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e4d1e3fb6467e1843b458142412be01a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 125
+  currentHealth: 125
+  moveSpeed: 8
+  sprintSpeed: 15
+  meleeDamage: 40
+  rangedDamage: 35
+  Defence: 20
+  Block: 30
+  BlockWalkSpeed: 6
+  gravityScale: 1
+  jumpForce: 9
 --- !u!1 &1997963505
 GameObject:
   m_ObjectHideFlags: 0

@@ -5,8 +5,14 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
+    public enum CharacterType { Erishikgal, Fredrick, Ezikiel, Miranda }
+
     [Header("Character Selection")]
-    public ErishikgalStats activeCharacter; 
+    public ErishikgalStats erishikgal;
+    public FredrickStats fredrick;
+    public EzikielStats ezikiel;
+    public MirandaStats miranda;
+    [SerializeField] private CharacterType activeCharacterType = CharacterType.Erishikgal;
 
     [Header("UI")]
     public UIController uiController; // Assign UIController in Inspector
@@ -43,15 +49,17 @@ public class PlayerController : MonoBehaviour
         if (cam != null)
             originalCameraLocalPos = cam.transform.localPosition;
 
-        // Initialize health bar at start
-        if (uiController != null && activeCharacter != null)
-        {
-            uiController.SetHealth(activeCharacter.currentHealth, activeCharacter.maxHealth);
-        }
+        SetHealthUI();
     }
 
     void Update()
     {
+        // Character swap input
+        if (Input.GetKeyDown(KeyCode.Alpha1)) SetActiveCharacter(CharacterType.Erishikgal);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) SetActiveCharacter(CharacterType.Fredrick);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) SetActiveCharacter(CharacterType.Ezikiel);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) SetActiveCharacter(CharacterType.Miranda);
+
         // Mouse look
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
@@ -78,29 +86,18 @@ public class PlayerController : MonoBehaviour
                 // Queue jump for end of slide
                 jumpQueued = true;
             }
-            else if (isGrounded && activeCharacter != null)
+            else if (isGrounded)
             {
-                rb.AddForce(Vector3.up * activeCharacter.jumpForce, ForceMode.Impulse);
+                GetRigidbody().AddForce(Vector3.up * GetJumpForce(), ForceMode.Impulse);
             }
         }
-        // DeathOnNoHealth
-        if (activeCharacter.currentHealth < 0)
-        {
-
-        }
-
 
 
         // Self-damage on "P" key
-        if (Input.GetKeyDown(KeyCode.P) && activeCharacter != null)
+        if (Input.GetKeyDown(KeyCode.P))
         {
-            activeCharacter.currentHealth -= 25f;
-            activeCharacter.currentHealth = Mathf.Max(0f, activeCharacter.currentHealth); // Prevent negative health
-
-            if (uiController != null)
-            {
-                uiController.SetHealth(activeCharacter.currentHealth, activeCharacter.maxHealth);
-            }
+            SetCurrentHealth(Mathf.Max(0f, GetCurrentHealth() - 25f));
+            SetHealthUI();
         }
 
         // Start slide
@@ -134,35 +131,122 @@ public class PlayerController : MonoBehaviour
                     cam.transform.localPosition = originalCameraLocalPos;
 
                 // Perform jump if queued
-                if (jumpQueued && isGrounded && activeCharacter != null)
+                if (jumpQueued && isGrounded)
                 {
-                    rb.AddForce(Vector3.up * activeCharacter.jumpForce, ForceMode.Impulse);
+                    GetRigidbody().AddForce(Vector3.up * GetJumpForce(), ForceMode.Impulse);
                 }
                 jumpQueued = false;
             }
         }
 
         // Update health bar every frame (optional, if health can change elsewhere)
-        if (uiController != null && activeCharacter != null)
+        if (uiController != null)
         {
-            uiController.SetHealth(activeCharacter.currentHealth, activeCharacter.maxHealth);
+            SetHealthUI();
         }
     }
 
     void FixedUpdate()
     {
-        if (activeCharacter == null)
-            return; // Do nothing if no character is assigned
-
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
 
         // Only allow sprinting if grounded
         bool canSprint = isGrounded && Input.GetKey(KeyCode.LeftShift);
-        float currentSpeed = isSliding ? currentSlideSpeed : (canSprint ? activeCharacter.sprintSpeed : activeCharacter.moveSpeed);
+        float currentSpeed = isSliding ? currentSlideSpeed : (canSprint ? GetSprintSpeed() : GetMoveSpeed());
 
         Vector3 move = (transform.right * moveX + transform.forward * moveZ).normalized * currentSpeed;
         Vector3 newPosition = rb.position + new Vector3(move.x, 0, move.z) * Time.fixedDeltaTime;
         rb.MovePosition(newPosition);
+    }
+
+    // --- Character Swapping Helpers ---
+
+    void SetActiveCharacter(CharacterType type)
+    {
+        activeCharacterType = type;
+        SetHealthUI();
+    }
+
+    void SetHealthUI()
+    {
+        if (uiController == null) return;
+        uiController.SetHealth(GetCurrentHealth(), GetMaxHealth());
+    }
+
+    float GetCurrentHealth()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.currentHealth : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.currentHealth : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.currentHealth : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.currentHealth : 0f;
+            default: return 0f;
+        }
+    }
+
+    void SetCurrentHealth(float value)
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: if (erishikgal != null) erishikgal.currentHealth = value; break;
+            case CharacterType.Fredrick: if (fredrick != null) fredrick.currentHealth = value; break;
+            case CharacterType.Ezikiel: if (ezikiel != null) ezikiel.currentHealth = value; break;
+            case CharacterType.Miranda: if (miranda != null) miranda.currentHealth = value; break;
+        }
+    }
+
+    float GetMaxHealth()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.maxHealth : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.maxHealth : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.maxHealth : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.maxHealth : 0f;
+            default: return 0f;
+        }
+    }
+
+    float GetJumpForce()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.jumpForce : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.jumpForce : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.jumpForce : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.jumpForce : 0f;
+            default: return 0f;
+        }
+    }
+
+    float GetMoveSpeed()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.moveSpeed : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.moveSpeed : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.moveSpeed : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.moveSpeed : 0f;
+            default: return 0f;
+        }
+    }
+
+    float GetSprintSpeed()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.sprintSpeed : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.sprintSpeed : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.sprintSpeed : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.sprintSpeed : 0f;
+            default: return 0f;
+        }
+    }
+
+    Rigidbody GetRigidbody()
+    {
+        return rb;
     }
 }
