@@ -14,7 +14,7 @@ public class EzikielStats : MonoBehaviour
     public float meleeDamage = 40f;
     public float rangedDamage = 35f;
     public float Defence = 20;
-    public float Block = 30;
+    public float Block = 25;
     public float BlockWalkSpeed = 6;
 
     [Header("Gravity")]

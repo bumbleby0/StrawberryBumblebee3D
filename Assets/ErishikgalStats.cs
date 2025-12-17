@@ -14,7 +14,7 @@ public class ErishikgalStats : MonoBehaviour
     public float meleeDamage = 25f;
     public float rangedDamage = 15f;
     public float Defence = 15;
-    public float Block = 25;
+    public float Block = 35;
     public float BlockWalkSpeed = 5;
 
     [Header("Gravity")]
