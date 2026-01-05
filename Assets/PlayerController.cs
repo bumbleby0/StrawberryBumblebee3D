@@ -29,6 +29,15 @@ public class PlayerController : MonoBehaviour
     public float minSlideSpeed = 10f;
     public float maxSlideSpeed = 25f;
 
+    [Header("Attack")]
+    public LayerMask attackMask = ~0; // layers hittable by attacks
+    public float meleeRange = 2f;
+    public float meleeRadius = 0.75f;
+    public float rangedMaxDistance = 100f;
+
+    private enum AttackMode { Melee, Ranged }
+    private AttackMode currentAttackMode = AttackMode.Melee;
+
     private Rigidbody rb;
     private float rotationY = 0f;
     private float cameraPitch = 0f;
@@ -40,6 +49,9 @@ public class PlayerController : MonoBehaviour
     private Vector3 originalCameraLocalPos;
     private float currentSlideSpeed = 0f;
     private bool jumpQueued = false;
+
+    // Erishikgal Inferno mode (hold E to activate while charge > 1)
+    private bool isInfernoActive = false;
 
     void Start()
     {
@@ -114,6 +126,9 @@ public class PlayerController : MonoBehaviour
                 Vector3 moveInput = (transform.right * moveX + transform.forward * moveZ).normalized;
                 bool canSprint = Input.GetKey(KeyCode.LeftShift);
                 float currentSpeed = canSprint ? GetSprintSpeed() : GetMoveSpeed();
+                // account for Erishikgal's Inferno doubling
+                if (isInfernoActive && activeCharacterType == CharacterType.Erishikgal)
+                    currentSpeed *= 2f;
 
                 Vector3 jumpVelocity;
                 if (moveInput.sqrMagnitude > 0.01f)
@@ -201,6 +216,77 @@ public class PlayerController : MonoBehaviour
         if (uiController != null)
         {
             SetHealthUI();
+            // Show inferno bar only when Erishikgal is the active character
+            if (activeCharacterType == CharacterType.Erishikgal && erishikgal != null)
+            {
+                uiController.ShowInferno(true);
+                uiController.SetInferno(erishikgal.InfernoCharge, erishikgal.MaxInfernoCharge);
+            }
+            else
+            {
+                uiController.ShowInferno(false);
+            }
+        }
+
+        // Handle attack input: Left click to attack, R to toggle melee/ranged (Fredrick cannot toggle)
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            ToggleAttackMode();
+        }
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (currentAttackMode == AttackMode.Melee) DoMeleeAttack(); else DoRangedAttack();
+        }
+
+        // Erishikgal Inferno input: hold E to activate while Erishikgal and has charge > 1
+        if (activeCharacterType == CharacterType.Erishikgal && erishikgal != null)
+        {
+            // Debug info to verify values and input
+            Debug.Log($"[Inferno Debug] Charge={erishikgal.InfernoCharge} Max={erishikgal.MaxInfernoCharge} isInfernoActive={isInfernoActive} EDown={Input.GetKey(KeyCode.E)}");
+            bool wantInferno = Input.GetKey(KeyCode.E) && erishikgal.InfernoCharge > 1f;
+            if (wantInferno && !isInfernoActive)
+            {
+                isInfernoActive = true;
+                Debug.Log("Erishikgal Inferno activated");
+            }
+            else if (!wantInferno && isInfernoActive)
+            {
+                isInfernoActive = false;
+                Debug.Log("Erishikgal Inferno deactivated");
+            }
+
+            // If active, drain over time here (use Time.deltaTime for visible UI update)
+            if (isInfernoActive)
+            {
+                float drainPerSecond = (erishikgal.MaxInfernoCharge > 0f) ? (erishikgal.MaxInfernoCharge / 8f) : (100f / 8f);
+                float delta = drainPerSecond * Time.deltaTime;
+                float before = erishikgal.InfernoCharge;
+                erishikgal.InfernoCharge = Mathf.Max(0f, erishikgal.InfernoCharge - delta);
+                Debug.Log($"[Inferno Debug] Draining {delta} (before={before} after={erishikgal.InfernoCharge})");
+
+                if (erishikgal.InfernoCharge <= 0f)
+                {
+                    isInfernoActive = false;
+                    Debug.Log("Erishikgal Inferno depleted");
+                }
+
+                // update UI immediately
+                if (uiController != null)
+                    uiController.SetInferno(erishikgal.InfernoCharge, erishikgal.MaxInfernoCharge);
+            }
+            else
+            {
+                // Passive recharge when not using Inferno
+                if (erishikgal.InfernoCharge < erishikgal.MaxInfernoCharge && erishikgal.InfernoRechargeRatePerSecond > 0f)
+                {
+                    float recharge = erishikgal.InfernoRechargeRatePerSecond * Time.deltaTime;
+                    float before = erishikgal.InfernoCharge;
+                    erishikgal.InfernoCharge = Mathf.Min(erishikgal.MaxInfernoCharge, erishikgal.InfernoCharge + recharge);
+                    Debug.Log($"[Inferno Debug] Recharging {recharge} (before={before} after={erishikgal.InfernoCharge})");
+                    if (uiController != null)
+                        uiController.SetInferno(erishikgal.InfernoCharge, erishikgal.MaxInfernoCharge);
+                }
+            }
         }
     }
 
@@ -213,6 +299,8 @@ public class PlayerController : MonoBehaviour
 
         bool canSprint = isGrounded && Input.GetKey(KeyCode.LeftShift);
         float currentSpeed = isSliding ? currentSlideSpeed : (canSprint ? GetSprintSpeed() : GetMoveSpeed());
+        if (isInfernoActive && activeCharacterType == CharacterType.Erishikgal)
+            currentSpeed *= 2f;
 
         Vector3 velocity = rb.velocity;
 
@@ -230,16 +318,25 @@ public class PlayerController : MonoBehaviour
         {
             // Air movement: allow strong air control
             Vector3 horizontalVelocity = new Vector3(velocity.x, 0, velocity.z);
-            Vector3 desiredHorizontalVelocity = moveInput * GetMoveSpeed();
+            // respect inferno when calculating desired air velocity
+            float airMaxSpeed = GetMoveSpeed();
+            if (isInfernoActive && activeCharacterType == CharacterType.Erishikgal)
+                airMaxSpeed *= 2f;
+            Vector3 desiredHorizontalVelocity = moveInput * airMaxSpeed;
             float airControl = 1.0f; // 1.0f = instant, <1.0f = more floaty
             Vector3 newHorizontalVelocity = Vector3.Lerp(horizontalVelocity, desiredHorizontalVelocity, airControl * Time.fixedDeltaTime);
 
             // Optional: Clamp to max ground speed
-            float maxAirSpeed = GetMoveSpeed();
-            if (newHorizontalVelocity.magnitude > maxAirSpeed)
-                newHorizontalVelocity = newHorizontalVelocity.normalized * maxAirSpeed;
+            if (newHorizontalVelocity.magnitude > airMaxSpeed)
+                newHorizontalVelocity = newHorizontalVelocity.normalized * airMaxSpeed;
 
             rb.velocity = new Vector3(newHorizontalVelocity.x, velocity.y, newHorizontalVelocity.z);
+        }
+
+        // Prevent small bounce on landing: if grounded and moving downward, zero vertical velocity
+        if (isGrounded && rb.velocity.y < 0f)
+        {
+            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         }
     }
 
@@ -331,5 +428,73 @@ public class PlayerController : MonoBehaviour
     Rigidbody GetRigidbody()
     {
         return rb;
+    }
+
+    // --- Attack helpers ---
+    void ToggleAttackMode()
+    {
+        if (activeCharacterType == CharacterType.Fredrick)
+        {
+            Debug.Log("Fredrick cannot toggle to ranged attacks.");
+            return;
+        }
+        currentAttackMode = currentAttackMode == AttackMode.Melee ? AttackMode.Ranged : AttackMode.Melee;
+        Debug.Log($"Switched attack mode to: {currentAttackMode}");
+    }
+
+    void DoMeleeAttack()
+    {
+        float damage = GetMeleeDamage();
+        Vector3 center = transform.position + transform.forward * (meleeRange * 0.5f) + Vector3.up * 1f;
+        Collider[] hits = Physics.OverlapSphere(center, meleeRadius, attackMask);
+        foreach (var col in hits)
+        {
+            if (col == null) continue;
+            if (col.transform.IsChildOf(transform) || col.gameObject == gameObject) continue;
+            col.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+        }
+        Debug.Log($"Melee attack dealt {damage} to {hits.Length} colliders");
+        #if UNITY_EDITOR
+        Debug.DrawLine(transform.position + Vector3.up * 1f, center, Color.red, 0.5f);
+        #endif
+    }
+
+    void DoRangedAttack()
+    {
+        float damage = GetRangedDamage();
+        Ray ray = (cam != null) ? new Ray(cam.transform.position, cam.transform.forward) : new Ray(transform.position + Vector3.up * 1f, transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, rangedMaxDistance, attackMask))
+        {
+            hit.collider.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+            Debug.Log($"Ranged attack hit {hit.collider.name} for {damage}");
+        }
+        else
+        {
+            Debug.Log($"Ranged attack missed (dealt {damage} to nothing)");
+        }
+    }
+
+    float GetMeleeDamage()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.meleeDamage : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.meleeDamage : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.meleeDamage : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.meleeDamage : 0f;
+            default: return 0f;
+        }
+    }
+
+    float GetRangedDamage()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.rangedDamage : 0f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.rangedDamage : 0f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.rangedDamage : 0f;
+            case CharacterType.Miranda: return miranda != null ? miranda.rangedDamage : 0f;
+            default: return 0f;
+        }
     }
 }

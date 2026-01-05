@@ -16,6 +16,9 @@ public class ErishikgalStats : MonoBehaviour
     public float Defence = 15;
     public float Block = 35;
     public float BlockWalkSpeed = 5;
+    public float InfernoCharge = 0f;
+    public float MaxInfernoCharge = 100f;
+    public float InfernoRechargeRatePerSecond = 1f;
 
     [Header("Gravity")]
     public float gravityScale = 0.9f; // Multiplier for gravity effect
@@ -30,6 +33,12 @@ public class ErishikgalStats : MonoBehaviour
         if (rb != null)
         {
             rb.mass = 1f * gravityScale; // Adjust mass based on gravityScale
+        }
+
+        // If InfernoCharge wasn't set in Inspector, initialize it to full charge
+        if (InfernoCharge <= 0f)
+        {
+            InfernoCharge = MaxInfernoCharge;
         }
     }
     void FixedUpdate()
