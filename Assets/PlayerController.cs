@@ -15,7 +15,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private CharacterType activeCharacterType = CharacterType.Erishikgal;
 
     [Header("UI")]
-    public UIController uiController; // Assign UIController in Inspector
+    public UIController uiController;
 
     public float mouseSensitivity = 2f;
     public float groundCheckDistance = 0.2f;
@@ -50,8 +50,13 @@ public class PlayerController : MonoBehaviour
     private float currentSlideSpeed = 0f;
     private bool jumpQueued = false;
 
-    // Erishikgal Inferno mode (hold E to activate while charge > 1)
+    // Erishikgal Inferno mode (tap E to activate while charge > 1)
     private bool isInfernoActive = false;
+
+    // Blocking
+    private bool isBlocking = false;
+
+    private int lastFredrickTokenCount = -99; // track last known count to update UI when changed
 
     void Start()
     {
@@ -82,6 +87,21 @@ public class PlayerController : MonoBehaviour
             originalCameraLocalPos = cam.transform.localPosition;
 
         SetHealthUI();
+
+        // Initialize Fredrick token UI visibility and count if UIController is assigned
+        if (uiController != null)
+        {
+            uiController.ShowFredrickTokens(activeCharacterType == CharacterType.Fredrick);
+            if (activeCharacterType == CharacterType.Fredrick && fredrick != null)
+            {
+                uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                lastFredrickTokenCount = fredrick.absoluteDefencePoints;
+            }
+            else
+            {
+                lastFredrickTokenCount = -99;
+            }
+        }
     }
 
     void Update()
@@ -109,6 +129,15 @@ public class PlayerController : MonoBehaviour
         Vector3 rayOrigin = col.bounds.center;
         rayOrigin.y = col.bounds.min.y + 0.05f;
         isGrounded = Physics.Raycast(rayOrigin, Vector3.down, groundCheckDistance, groundMask);
+
+        // If sliding but become airborne, cancel slide to avoid MovePosition in air
+        if (isSliding && !isGrounded)
+        {
+            isSliding = false;
+            slideTimer = 0f;
+            if (cam != null)
+                cam.transform.localPosition = originalCameraLocalPos;
+        }
 
         // Jump
         if (Input.GetButtonDown("Jump"))
@@ -147,11 +176,16 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Self-damage on "P" key
+        // Self-damage on "P" key (debug): route through TakeDamage so blocking/Absolute Defence apply
         if (Input.GetKeyDown(KeyCode.P))
         {
-            SetCurrentHealth(Mathf.Max(0f, GetCurrentHealth() - 25f));
-            SetHealthUI();
+            TakeDamage(25f);
+        }
+
+        // Debug: deal 100 damage to the active character when pressing O
+        if (Input.GetKeyDown(KeyCode.O))
+        {
+            TakeDamage(100f);
         }
 
         // Start slide
@@ -288,6 +322,61 @@ public class PlayerController : MonoBehaviour
                 }
             }
         }
+
+        // Blocking input and Absolute Defence activation
+        // Universal block: holding right mouse applies a flat Block reduction based on the currently active character's Block stat.
+        // Absolute Defence activation (Fredrick) can be triggered by pressing E even if Fredrick is not the active character,
+        // but Erishikgal's inferno (hold E) takes precedence when Erishikgal is active.
+
+        // Try to activate Fredrick Absolute Defence when E is pressed and Erishikgal is not active
+        if (Input.GetKeyDown(KeyCode.E) && !(activeCharacterType == CharacterType.Erishikgal))
+        {
+            if (fredrick != null)
+            {
+                bool activated = fredrick.TryActivateAbsoluteDefence();
+                if (activated)
+                {
+                    // logged inside TryActivateAbsoluteDefence
+                    if (uiController != null)
+                        uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                }
+            }
+        }
+
+        // Universal blocking hold
+        bool holdingBlock = Input.GetMouseButton(1);
+        if (holdingBlock && !isBlocking)
+        {
+            isBlocking = true;
+            Debug.Log("Started blocking (hold right mouse)");
+        }
+        else if (!holdingBlock && isBlocking)
+        {
+            isBlocking = false;
+            Debug.Log("Stopped blocking");
+        }
+
+        // Poll Fredrick token count and update UI when it changes (covers any consumption path)
+        if (uiController != null && fredrick != null)
+        {
+            if (activeCharacterType == CharacterType.Fredrick)
+            {
+                if (fredrick.absoluteDefencePoints != lastFredrickTokenCount)
+                {
+                    uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                    lastFredrickTokenCount = fredrick.absoluteDefencePoints;
+                }
+            }
+            else
+            {
+                // hide tokens when not Fredrick
+                if (lastFredrickTokenCount != -99)
+                {
+                    uiController.ShowFredrickTokens(false);
+                    lastFredrickTokenCount = -99;
+                }
+            }
+        }
     }
 
     void FixedUpdate()
@@ -297,7 +386,7 @@ public class PlayerController : MonoBehaviour
         
         Vector3 moveInput = (transform.right * moveX + transform.forward * moveZ).normalized;
 
-        bool canSprint = isGrounded && Input.GetKey(KeyCode.LeftShift);
+        bool canSprint = isGrounded && Input.GetKey(KeyCode.LeftShift) && !isBlocking;
         float currentSpeed = isSliding ? currentSlideSpeed : (canSprint ? GetSprintSpeed() : GetMoveSpeed());
         if (isInfernoActive && activeCharacterType == CharacterType.Erishikgal)
             currentSpeed *= 2f;
@@ -306,13 +395,11 @@ public class PlayerController : MonoBehaviour
 
         if (isGrounded || isSliding)
         {
-            // Use MovePosition for smooth, physics-friendly ground movement
             if (moveInput.sqrMagnitude > 0.01f)
             {
                 Vector3 move = moveInput * currentSpeed * Time.fixedDeltaTime;
                 rb.MovePosition(rb.position + new Vector3(move.x, 0, move.z));
             }
-            // else: do nothing, let drag/friction stop the player naturally
         }
         else
         {
@@ -346,6 +433,20 @@ public class PlayerController : MonoBehaviour
     {
         activeCharacterType = type;
         SetHealthUI();
+
+        if (uiController != null)
+        {
+            uiController.ShowFredrickTokens(activeCharacterType == CharacterType.Fredrick);
+            if (activeCharacterType == CharacterType.Fredrick && fredrick != null)
+            {
+                uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                lastFredrickTokenCount = fredrick.absoluteDefencePoints;
+            }
+            else
+            {
+                lastFredrickTokenCount = -99;
+            }
+        }
     }
 
     void SetHealthUI()
@@ -452,6 +553,14 @@ public class PlayerController : MonoBehaviour
             if (col == null) continue;
             if (col.transform.IsChildOf(transform) || col.gameObject == gameObject) continue;
             col.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+
+            // If Fredrick is the active character, gain charge per successful hit
+            if (activeCharacterType == CharacterType.Fredrick && fredrick != null)
+            {
+                fredrick.AddChargeFromHit();
+                if (uiController != null)
+                    uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+            }
         }
         Debug.Log($"Melee attack dealt {damage} to {hits.Length} colliders");
         #if UNITY_EDITOR
@@ -466,12 +575,77 @@ public class PlayerController : MonoBehaviour
         if (Physics.Raycast(ray, out RaycastHit hit, rangedMaxDistance, attackMask))
         {
             hit.collider.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+
+            // If Fredrick is the active character, gain charge per successful hit
+            if (activeCharacterType == CharacterType.Fredrick && fredrick != null)
+            {
+                fredrick.AddChargeFromHit();
+                if (uiController != null)
+                    uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+            }
+
             Debug.Log($"Ranged attack hit {hit.collider.name} for {damage}");
         }
         else
         {
             Debug.Log($"Ranged attack missed (dealt {damage} to nothing)");
         }
+    }
+
+    // Receive damage via SendMessage from other objects
+    public void TakeDamage(float damage)
+    {
+        // If Fredrick has an active Absolute Defence and Fredrick is the active character, let him resolve it against this incoming damage.
+        // This keeps damage retrieval for other characters unchanged.
+        if (activeCharacterType == CharacterType.Fredrick && fredrick != null)
+        {
+            bool resolved = fredrick.TryResolveAbsoluteDefenceOnIncomingDamage(damage);
+            if (uiController != null)
+                uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+            if (resolved)
+            {
+                Debug.Log("Fredrick blocked incoming damage with Absolute Defence");
+                return;
+            }
+        }
+
+        // Apply passive defence of the character receiving damage first
+        float defence = 0f;
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: if (erishikgal != null) defence = erishikgal.Defence; break;
+            case CharacterType.Fredrick: if (fredrick != null) defence = fredrick.Defence; break;
+            case CharacterType.Ezikiel: if (ezikiel != null) defence = ezikiel.Defence; break;
+            case CharacterType.Miranda: if (miranda != null) defence = miranda.Defence; break;
+        }
+
+        float beforeDef = damage;
+        damage = Mathf.Max(0f, damage - defence);
+        if (defence > 0f)
+            Debug.Log($"Applied defence {defence}. Incoming: {beforeDef} -> {damage}");
+
+        // If blocking (universal) subtract flat Block value from damage (additive with defence)
+        if (isBlocking)
+        {
+            float blockValue = 0f;
+            switch (activeCharacterType)
+            {
+                case CharacterType.Erishikgal: if (erishikgal != null) blockValue = erishikgal.Block; break;
+                case CharacterType.Fredrick: if (fredrick != null) blockValue = fredrick.Block; break;
+                case CharacterType.Ezikiel: if (ezikiel != null) blockValue = ezikiel.Block; break;
+                case CharacterType.Miranda: if (miranda != null) blockValue = miranda.Block; break;
+            }
+
+            float beforeBlock = damage;
+            damage = Mathf.Max(0f, damage - blockValue);
+            if (blockValue > 0f)
+                Debug.Log($"Applied block {blockValue}. Before block: {beforeBlock} -> {damage}");
+        }
+
+        // Apply damage to the active character
+        float newHealth = Mathf.Max(0f, GetCurrentHealth() - damage);
+        SetCurrentHealth(newHealth);
+        SetHealthUI();
     }
 
     float GetMeleeDamage()
