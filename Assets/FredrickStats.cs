@@ -123,7 +123,7 @@ public class FredrickStats : MonoBehaviour
         const float EPS = 0.0001f;
 
         // If incoming damage is less than or equal to Fredrick's base Defence, refund the point
-        if (incomingDamage <= Defence + EPS)
+        if (incomingDamage <= Defence + EPS + isBlocking = true )
         {
             // refund one point
             absoluteDefenceActive = false;

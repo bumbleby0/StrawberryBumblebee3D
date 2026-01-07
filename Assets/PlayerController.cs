@@ -54,7 +54,7 @@ public class PlayerController : MonoBehaviour
     private bool isInfernoActive = false;
 
     // Blocking
-    private bool isBlocking = false;
+    public bool isBlocking = false;
 
     private int lastFredrickTokenCount = -99; // track last known count to update UI when changed
 

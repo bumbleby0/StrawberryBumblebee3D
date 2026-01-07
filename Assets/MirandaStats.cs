@@ -8,7 +8,7 @@ public class MirandaStats : MonoBehaviour
     public float maxHealth = 50f;
     public float currentHealth = 50f;
     public float moveSpeed = 10f;
-    public float sprintSpeed = 20f; // Added sprint speed
+    public float sprintSpeed = 20f; //sprint speed
 
     [Header("Combat Stats")]
     public float meleeDamage = 7f;
@@ -16,9 +16,17 @@ public class MirandaStats : MonoBehaviour
     public float Defence = 5;
     public float Block = 10;
     public float BlockWalkSpeed = 10;
+    public bool FreeRocketReady = false;
+    public float MaxFreeRocketCharge = 100;
+    public float FreeRocketCharge = 0;
+    public float FreeRocketChargeSec = 2;
+    public float GuidedRocketChargeSec = 4;
+    public float GuidedRocketCharge = 0;
+    public float GuidedRocketChargeMax = 100;
+    public bool GuidedRocketReady = false; 
 
     [Header("Gravity")]
-    public float gravityScale = 1f; // Multiplier for gravity effect 
+    public float gravityScale = 1f; //Multiplier for gravity effect 
     [Header("Jump")]
     public float jumpForce = 8f;
 
