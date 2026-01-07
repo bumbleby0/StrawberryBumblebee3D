@@ -32,7 +32,7 @@ public class FredrickStats : MonoBehaviour
     private float absoluteDefenceTimer = 0f;
 
     [Header("Gravity")]
-    public float gravityScale = 1.2f; // Multiplier for gravity effect
+    public float gravityScale = 1.1f; // Multiplier for gravity effect
 
     [Header("Jump")]
     public float jumpForce = 3f;
@@ -122,8 +122,8 @@ public class FredrickStats : MonoBehaviour
         // Use a small epsilon to avoid float precision issues when comparing equality
         const float EPS = 0.0001f;
 
-        // If incoming damage is less than or equal to Fredrick's base Defence, refund the point
-        if (incomingDamage <= Defence + EPS + isBlocking = true )
+        // If incoming damage is less than or equal to Fredrick's base Defence, refund the point;
+        if (incomingDamage <= Defence + EPS)
         {
             // refund one point
             absoluteDefenceActive = false;

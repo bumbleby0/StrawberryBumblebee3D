@@ -16,6 +16,14 @@ public class UIController : MonoBehaviour
     public GameObject fredrickTokensParent; // parent object that will contain token instances
     public GameObject fredrickTokenPrefab; // prefab for a single token (assign in Inspector)
 
+    [Header("MirandaGuidedRocketBar")]
+    public GameObject MirandaGuidingProgressBG; // parent GameObject for Guided Rocket Bar
+    public Image MirandaGuidingProgress; // Assign Guided Rocket Bar Image in Inspector
+
+    [Header("MirandaFreeRocketBar")]
+    public GameObject MirandaFreeRocketBG; // parent GameObject for Free Rocket Bar
+    public Image MirandaFreeRocketBar; // Assign Free Rocket Bar Image in Inspector
+
     private int currentFredrickTokenCount = -1;
     private readonly string[] fredrickTokenNames = { "FredrickToken_Left", "FredrickToken_Mid", "FredrickToken_Right" };
 
@@ -52,6 +60,13 @@ public class UIController : MonoBehaviour
     {
         if (infernoBarObject != null)
             infernoBarObject.SetActive(show);
+    }
+
+    // Show or hide Miranda UI elements 
+    public void ShowMirandaUI(bool show)
+    {
+        if (MirandaGuidingProgressBG != null)
+            MirandaGuidingProgress.SetActive(show);
     }
 
     // Show or hide Fredrick token UI parent
@@ -109,7 +124,6 @@ public class UIController : MonoBehaviour
             {
                 go = new GameObject(name);
                 go.transform.SetParent(fredrickTokensParent.transform, false);
-                // add Image so it can be displayed if desired
                 go.AddComponent<RectTransform>();
                 var img = go.AddComponent<Image>();
                 img.color = Color.white;

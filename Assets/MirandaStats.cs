@@ -23,7 +23,9 @@ public class MirandaStats : MonoBehaviour
     public float GuidedRocketChargeSec = 4;
     public float GuidedRocketCharge = 0;
     public float GuidedRocketChargeMax = 100;
-    public bool GuidedRocketReady = false; 
+    public bool GuidedRocketReady = false;
+    public float TempRocketMax = 1;
+    public float TempRocketCount = 0;
 
     [Header("Gravity")]
     public float gravityScale = 1f; //Multiplier for gravity effect 

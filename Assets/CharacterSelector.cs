@@ -5,8 +5,6 @@ public class CharacterSelector : MonoBehaviour
 {
     public static string SelectedCharacter { get; private set; }
 
-    // These methods can be assigned directly in the Inspector for each button's OnClick event
-
     public void SelectFredrick()
     {
         SelectCharacter("Fredrick");
