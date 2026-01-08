@@ -16,6 +16,14 @@ public class EzikielStats : MonoBehaviour
     public float Defence = 20;
     public float Block = 25;
     public float BlockWalkSpeed = 6;
+    public float RangedRageCount = 0;
+    public float MeleeRageCount = 0;
+    public float MeleeRageOnHit = 1;
+    public float RangedRageOnHit = 1;
+    public float AddedRangedDamage = 2;
+    public float AddedMeleeDamage = 2;
+    public float RageRangedDamage = 0;
+    public float MeleeRageDamage = 0;
 
     [Header("Gravity")]
     public float gravityScale = 1f; // Multiplier for gravity effect
@@ -39,6 +47,25 @@ public class EzikielStats : MonoBehaviour
         if (rb != null)
         {
             rb.AddForce(Physics.gravity * gravityScale - Physics.gravity, ForceMode.Acceleration);
+        }
+    }
+
+    // Call when Ezi lands a succssesful melee attack
+    public void AddRangedRageOnMelee()
+    {
+        RangedRageCount += RangedRageOnHit;
+        while (RangedRageCount > 0)
+        {
+            
+        }
+    }
+    // Call when Ezi lands a succssesful ranged attack
+    public void AddMeleeRageOnRanged()
+    {
+        MeleeRageCount += RangedRageOnHit;
+        while (MeleeRageCount > 0)
+        {
+
         }
     }
 }

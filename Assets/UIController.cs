@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -24,6 +25,13 @@ public class UIController : MonoBehaviour
     public GameObject MirandaFreeRocketBG; // parent GameObject for Free Rocket Bar
     public Image MirandaFreeRocketBar; // Assign Free Rocket Bar Image in Inspector
 
+    [Header("Ezikiel Rage Parent")]
+    public GameObject EzikielRageParent; // parent GameObject for the Rage
+    public Image EziMeleeRageimg; // Assign Melee Rage image in Inspector 
+    public Image EziRangedRageimg; // Assign Ranged Rage image in Inspector
+    public TextMeshProUGUI EziMeleeRageCount; // Assign Melee Rage count in Inspector
+    public TextMeshProUGUI EziRangedRageCount; // Assign Ranged Rage count in Inspector
+
     private int currentFredrickTokenCount = -1;
     private readonly string[] fredrickTokenNames = { "FredrickToken_Left", "FredrickToken_Mid", "FredrickToken_Right" };
 
@@ -32,6 +40,13 @@ public class UIController : MonoBehaviour
         // Show the inferno bar only if Erishikgal is the selected character
         bool isErishikgal = !string.IsNullOrEmpty(CharacterSelector.SelectedCharacter) && CharacterSelector.SelectedCharacter == "Erishikgal";
         ShowInferno(isErishikgal);
+        // Show Miranda's UI only if Miranda is the selected character
+        bool isMiranda = !string.IsNullOrEmpty(CharacterSelector.SelectedCharacter) && CharacterSelector.SelectedCharacter == "Miranda";
+        ShowMirandaUI(isMiranda);
+        // Show the Ezikiel UI only if Ezikiel is the selected character
+        bool isEzikel = !string.IsNullOrEmpty(CharacterSelector.SelectedCharacter) && CharacterSelector.SelectedCharacter == "Ezikiel";
+        ShowEzikielRage(isEzikel);
+
 
         if (fredrickTokensParent != null)
             fredrickTokensParent.SetActive(false);
@@ -66,7 +81,16 @@ public class UIController : MonoBehaviour
     public void ShowMirandaUI(bool show)
     {
         if (MirandaGuidingProgressBG != null)
-            MirandaGuidingProgress.SetActive(show);
+            MirandaGuidingProgressBG.SetActive(show);
+        if (MirandaFreeRocketBG != null)
+            MirandaFreeRocketBG.SetActive(show);
+    }
+
+    // Sshow or hide Ezikiel UI elements
+    public void ShowEzikielRage(bool show)
+    {
+        if (EzikielRageParent != null)
+            EzikielRageParent.SetActive(show);
     }
 
     // Show or hide Fredrick token UI parent
