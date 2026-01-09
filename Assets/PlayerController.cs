@@ -122,6 +122,16 @@ public class PlayerController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha3)) SetActiveCharacter(CharacterType.Ezikiel);
         if (Input.GetKeyDown(KeyCode.Alpha4)) SetActiveCharacter(CharacterType.Miranda);
 
+        // Quit game with Escape
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
         // Mouse look
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
