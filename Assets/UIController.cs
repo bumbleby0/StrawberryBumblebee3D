@@ -32,8 +32,30 @@ public class UIController : MonoBehaviour
     public TextMeshProUGUI EziMeleeRageCount; // Assign Melee Rage count in Inspector
     public TextMeshProUGUI EziRangedRageCount; // Assign Ranged Rage count in Inspector
 
+    [Header("Dialogue UI")]
+    public GameObject dialogueRoot;
+    public TMPro.TMP_Text dialogueSpeakerName;
+    public TMPro.TMP_Text dialogueText;
+    public Image dialoguePortrait;
+    public Image dialogueLargeImage;
+
     private int currentFredrickTokenCount = -1;
     private readonly string[] fredrickTokenNames = { "FredrickToken_Left", "FredrickToken_Mid", "FredrickToken_Right" };
+
+    // smoothing targets / state
+    private float targetHealthFill = 1f;
+    private float displayedHealthFill = 1f;
+    private const float healthSmoothTime = 0.25f; // seconds to reach target for health
+
+    private float targetInfernoFill = 0f;
+    private float displayedInfernoFill = 0f;
+    private const float otherSmoothTime = 0.5f; // seconds to reach target for other bars (drop/build)
+
+    private float targetMirandaGuidedFill = 0f;
+    private float displayedMirandaGuidedFill = 0f;
+
+    private float targetMirandaFreeFill = 0f;
+    private float displayedMirandaFreeFill = 0f;
 
     void Start()
     {
@@ -50,23 +72,97 @@ public class UIController : MonoBehaviour
 
         if (fredrickTokensParent != null)
             fredrickTokensParent.SetActive(false);
+
+        // initialize displayed fills from current images if available
+        if (healthBarFill != null)
+        {
+            displayedHealthFill = healthBarFill.fillAmount;
+            targetHealthFill = displayedHealthFill;
+        }
+        if (infernoBarFill != null)
+        {
+            displayedInfernoFill = infernoBarFill.fillAmount;
+            targetInfernoFill = displayedInfernoFill;
+        }
+        if (MirandaGuidingProgress != null)
+        {
+            displayedMirandaGuidedFill = MirandaGuidingProgress.fillAmount;
+            targetMirandaGuidedFill = displayedMirandaGuidedFill;
+        }
+        if (MirandaFreeRocketBar != null)
+        {
+            displayedMirandaFreeFill = MirandaFreeRocketBar.fillAmount;
+            targetMirandaFreeFill = displayedMirandaFreeFill;
+        }
     }
 
-    // Call this method to update the health bar
+    void Update()
+    {
+        // Smoothly move displayed fills toward target fills over configured durations
+        float dt = Time.unscaledDeltaTime; // use unscaled so UI isn't affected by time scale changes
+
+        // Health
+        if (healthBarFill != null)
+        {
+            if (!Mathf.Approximately(displayedHealthFill, targetHealthFill))
+            {
+                float step = dt / Mathf.Max(0.0001f, healthSmoothTime);
+                displayedHealthFill = Mathf.MoveTowards(displayedHealthFill, targetHealthFill, step);
+                healthBarFill.fillAmount = displayedHealthFill;
+            }
+        }
+
+        // Inferno
+        if (infernoBarFill != null)
+        {
+            if (!Mathf.Approximately(displayedInfernoFill, targetInfernoFill))
+            {
+                float step = dt / Mathf.Max(0.0001f, otherSmoothTime);
+                displayedInfernoFill = Mathf.MoveTowards(displayedInfernoFill, targetInfernoFill, step);
+                infernoBarFill.fillAmount = displayedInfernoFill;
+            }
+        }
+
+        // Miranda guided
+        if (MirandaGuidingProgress != null)
+        {
+            if (!Mathf.Approximately(displayedMirandaGuidedFill, targetMirandaGuidedFill))
+            {
+                float step = dt / Mathf.Max(0.0001f, otherSmoothTime);
+                displayedMirandaGuidedFill = Mathf.MoveTowards(displayedMirandaGuidedFill, targetMirandaGuidedFill, step);
+                MirandaGuidingProgress.fillAmount = displayedMirandaGuidedFill;
+            }
+        }
+
+        // Miranda free
+        if (MirandaFreeRocketBar != null)
+        {
+            if (!Mathf.Approximately(displayedMirandaFreeFill, targetMirandaFreeFill))
+            {
+                float step = dt / Mathf.Max(0.0001f, otherSmoothTime);
+                displayedMirandaFreeFill = Mathf.MoveTowards(displayedMirandaFreeFill, targetMirandaFreeFill, step);
+                MirandaFreeRocketBar.fillAmount = displayedMirandaFreeFill;
+            }
+        }
+    }
+
+    // Call this method to update the health bar (sets target; transition occurs in Update())
     public void SetHealth(float currentHealth, float maxHealth)
     {
         if (healthBarFill != null && maxHealth > 0f)
         {
-            healthBarFill.fillAmount = Mathf.Clamp01(currentHealth / maxHealth);
+            float target = Mathf.Clamp01(currentHealth / maxHealth);
+            targetHealthFill = target;
+            // if the UI is offscreen or we want instant set when large jumps (optional), we can set displayed immediately when difference tiny
         }
     }
 
-    // Call this to update the inferno bar fill
+    // Call this to update the inferno bar fill (sets target)
     public void SetInferno(float currentInferno, float maxInferno)
     {
         if (infernoBarFill != null && maxInferno > 0f)
         {
-            infernoBarFill.fillAmount = Mathf.Clamp01(currentInferno / maxInferno);
+            targetInfernoFill = Mathf.Clamp01(currentInferno / maxInferno);
         }
     }
 
@@ -86,11 +182,43 @@ public class UIController : MonoBehaviour
             MirandaFreeRocketBG.SetActive(show);
     }
 
+    // Update Miranda guided rocket charge bar (sets target)
+    public void SetMirandaGuidedProgress(float current, float max)
+    {
+        if (MirandaGuidingProgress != null && max > 0f)
+        {
+            targetMirandaGuidedFill = Mathf.Clamp01(current / max);
+        }
+    }
+
+    // Update Miranda free rocket charge bar (sets target)
+    public void SetMirandaFreeProgress(float current, float max)
+    {
+        if (MirandaFreeRocketBar != null && max > 0f)
+        {
+            targetMirandaFreeFill = Mathf.Clamp01(current / max);
+        }
+    }
+
     // Sshow or hide Ezikiel UI elements
     public void ShowEzikielRage(bool show)
     {
         if (EzikielRageParent != null)
             EzikielRageParent.SetActive(show);
+    }
+
+    // Update Ezikiel's rage counters and visibility of their icons
+    public void SetEzikielRage(int meleeCount, int rangedCount)
+    {
+        if (EziMeleeRageCount != null)
+            EziMeleeRageCount.text = meleeCount.ToString();
+        if (EziRangedRageCount != null)
+            EziRangedRageCount.text = rangedCount.ToString();
+
+        if (EziMeleeRageimg != null)
+            EziMeleeRageimg.gameObject.SetActive(meleeCount > 0);
+        if (EziRangedRageimg != null)
+            EziRangedRageimg.gameObject.SetActive(rangedCount > 0);
     }
 
     // Show or hide Fredrick token UI parent
@@ -161,5 +289,34 @@ public class UIController : MonoBehaviour
             if (t != null)
                 t.SetSiblingIndex(i);
         }
+    }
+
+    // Hook to show/hide dialogue root quickly
+    public void ShowDialogueUI(bool show)
+    {
+        if (dialogueRoot != null)
+            dialogueRoot.SetActive(show);
+    }
+
+    // Set dialogue fields (optional convenience)
+    public void SetDialogueSpeaker(string name)
+    {
+        if (dialogueSpeakerName != null)
+            dialogueSpeakerName.text = name;
+    }
+    public void SetDialogueText(string t)
+    {
+        if (dialogueText != null)
+            dialogueText.text = t;
+    }
+    public void SetDialoguePortrait(Sprite s)
+    {
+        if (dialoguePortrait != null)
+            dialoguePortrait.sprite = s;
+    }
+    public void SetDialogueLargeImage(Sprite s)
+    {
+        if (dialogueLargeImage != null)
+            dialogueLargeImage.sprite = s;
     }
 }

@@ -31,6 +31,10 @@ public class FredrickStats : MonoBehaviour
     private bool absoluteDefenceActive = false;
     private float absoluteDefenceTimer = 0f;
 
+    [Header("Melee Settings")]
+    public float meleeRange = 2.0f; // Fredrick uses longsword - average reach
+    public float meleeDelay = 0.5f; // average speed
+
     [Header("Gravity")]
     public float gravityScale = 1.1f; // Multiplier for gravity effect
 

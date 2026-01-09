@@ -338,7 +338,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.000005722046
+      value: -0.002
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: f1e8e1bfafe7fa241ba6b4181f3eba85, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1841,6 +1841,8 @@ MonoBehaviour:
   InfernoCharge: 0
   MaxInfernoCharge: 100
   InfernoRechargeRatePerSecond: 1
+  meleeRange: 2.5
+  meleeDelay: 0.4
   gravityScale: 0.9
   jumpForce: 8
 --- !u!114 &1314575645
@@ -1869,6 +1871,8 @@ MonoBehaviour:
   absoluteDefenceDuration: 3
   absoluteDefencePoints: 0
   currentAbsoluteCharge: 0
+  meleeRange: 2
+  meleeDelay: 0.5
   gravityScale: 1.2
   jumpForce: 3
 --- !u!114 &1314575646
@@ -1902,6 +1906,8 @@ MonoBehaviour:
   GuidedRocketReady: 0
   TempRocketMax: 1
   TempRocketCount: 0
+  meleeRange: 2.8
+  meleeDelay: 0.6
   gravityScale: 1
   jumpForce: 8
 --- !u!114 &1314575647
@@ -1933,6 +1939,8 @@ MonoBehaviour:
   AddedMeleeDamage: 2
   RageRangedDamage: 0
   MeleeRageDamage: 0
+  meleeRange: 1.8
+  meleeDelay: 0.45
   gravityScale: 1
   jumpForce: 9
 --- !u!1 &1629965412

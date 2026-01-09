@@ -58,8 +58,18 @@ public class PlayerController : MonoBehaviour
 
     private int lastFredrickTokenCount = -99; // track last known count to update UI when changed
 
+    // Respawn tracking
+    private Vector3 spawnPosition;
+    private Quaternion spawnRotation;
+
+    private float nextMeleeTime = 0f; // cooldown timer for melee attacks
+
     void Start()
     {
+        // record initial spawn position/rotation for respawn
+        spawnPosition = transform.position;
+        spawnRotation = transform.rotation;
+
         // Set active character from CharacterSelector
         if (!string.IsNullOrEmpty(CharacterSelector.SelectedCharacter))
         {
@@ -260,6 +270,14 @@ public class PlayerController : MonoBehaviour
             {
                 uiController.ShowInferno(false);
             }
+
+            // Miranda UI updates: guided and free rocket bars
+            if (miranda != null)
+            {
+                uiController.ShowMirandaUI(activeCharacterType == CharacterType.Miranda);
+                uiController.SetMirandaGuidedProgress(miranda.GuidedRocketCharge, miranda.GuidedRocketChargeMax);
+                uiController.SetMirandaFreeProgress(miranda.FreeRocketCharge, miranda.MaxFreeRocketCharge);
+            }
         }
 
         // Handle attack input: Left click to attack, R to toggle melee/ranged (Fredrick cannot toggle)
@@ -269,24 +287,62 @@ public class PlayerController : MonoBehaviour
         }
         if (Input.GetMouseButtonDown(0))
         {
-            if (currentAttackMode == AttackMode.Melee) DoMeleeAttack(); else DoRangedAttack();
+            if (currentAttackMode == AttackMode.Melee)
+            {
+                // Respect per-character melee delay
+                if (Time.time >= nextMeleeTime)
+                {
+                    DoMeleeAttack();
+                    nextMeleeTime = Time.time + GetMeleeDelayForActive();
+                }
+                else
+                {
+                    // optionally ignore or give feedback
+                    Debug.Log("Melee on cooldown");
+                }
+            }
+            else
+            {
+                // Ranged fire: only if active character has ammo and is allowed to fire
+                bool fired = false;
+                switch (activeCharacterType)
+                {
+                    case CharacterType.Erishikgal:
+                        if (erishikgal != null && erishikgal.TryFireRanged()) fired = true;
+                        break;
+                    case CharacterType.Fredrick:
+                        // Fredrick has no ranged attacks
+                        break;
+                    case CharacterType.Ezikiel:
+                        if (ezikiel != null && ezikiel.TryFireRanged()) fired = true;
+                        break;
+                    case CharacterType.Miranda:
+                        if (miranda != null && miranda.TryFireRanged()) fired = true;
+                        break;
+                }
+
+                if (fired)
+                {
+                    DoRangedAttack();
+                }
+                else
+                {
+                    Debug.Log("Ranged cannot fire - no ammo or reloading");
+                }
+            }
         }
 
         // Erishikgal Inferno input: hold E to activate while Erishikgal and has charge > 1
         if (activeCharacterType == CharacterType.Erishikgal && erishikgal != null)
         {
-            // Debug info to verify values and input
-            Debug.Log($"[Inferno Debug] Charge={erishikgal.InfernoCharge} Max={erishikgal.MaxInfernoCharge} isInfernoActive={isInfernoActive} EDown={Input.GetKey(KeyCode.E)}");
             bool wantInferno = Input.GetKey(KeyCode.E) && erishikgal.InfernoCharge > 1f;
             if (wantInferno && !isInfernoActive)
             {
                 isInfernoActive = true;
-                Debug.Log("Erishikgal Inferno activated");
             }
             else if (!wantInferno && isInfernoActive)
             {
                 isInfernoActive = false;
-                Debug.Log("Erishikgal Inferno deactivated");
             }
 
             // If active, drain over time here (use Time.deltaTime for visible UI update)
@@ -294,14 +350,11 @@ public class PlayerController : MonoBehaviour
             {
                 float drainPerSecond = (erishikgal.MaxInfernoCharge > 0f) ? (erishikgal.MaxInfernoCharge / 8f) : (100f / 8f);
                 float delta = drainPerSecond * Time.deltaTime;
-                float before = erishikgal.InfernoCharge;
                 erishikgal.InfernoCharge = Mathf.Max(0f, erishikgal.InfernoCharge - delta);
-                Debug.Log($"[Inferno Debug] Draining {delta} (before={before} after={erishikgal.InfernoCharge})");
 
                 if (erishikgal.InfernoCharge <= 0f)
                 {
                     isInfernoActive = false;
-                    Debug.Log("Erishikgal Inferno depleted");
                 }
 
                 // update UI immediately
@@ -314,9 +367,7 @@ public class PlayerController : MonoBehaviour
                 if (erishikgal.InfernoCharge < erishikgal.MaxInfernoCharge && erishikgal.InfernoRechargeRatePerSecond > 0f)
                 {
                     float recharge = erishikgal.InfernoRechargeRatePerSecond * Time.deltaTime;
-                    float before = erishikgal.InfernoCharge;
                     erishikgal.InfernoCharge = Mathf.Min(erishikgal.MaxInfernoCharge, erishikgal.InfernoCharge + recharge);
-                    Debug.Log($"[Inferno Debug] Recharging {recharge} (before={before} after={erishikgal.InfernoCharge})");
                     if (uiController != null)
                         uiController.SetInferno(erishikgal.InfernoCharge, erishikgal.MaxInfernoCharge);
                 }
@@ -331,14 +382,42 @@ public class PlayerController : MonoBehaviour
         // Try to activate Fredrick Absolute Defence when E is pressed and Erishikgal is not active
         if (Input.GetKeyDown(KeyCode.E) && !(activeCharacterType == CharacterType.Erishikgal))
         {
-            if (fredrick != null)
+            if (activeCharacterType == CharacterType.Miranda && miranda != null)
             {
-                bool activated = fredrick.TryActivateAbsoluteDefence();
-                if (activated)
+                // If guided rocket is full, pressing E should enter target painting mode (consume charge)
+                if (miranda.GuidedRocketCharge >= miranda.GuidedRocketChargeMax)
                 {
-                    // logged inside TryActivateAbsoluteDefence
-                    if (uiController != null)
-                        uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                    bool consumed = miranda.ConsumeGuidedCharge();
+                    if (consumed)
+                    {
+                        EnterMirandaTargetPaintMode();
+                    }
+                }
+                else
+                {
+                    // If not Miranda or guided not ready, try Fredrick absolute defence as before
+                    if (fredrick != null)
+                    {
+                        bool activated = fredrick.TryActivateAbsoluteDefence();
+                        if (activated)
+                        {
+                            if (uiController != null)
+                                uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (fredrick != null)
+                {
+                    bool activated = fredrick.TryActivateAbsoluteDefence();
+                    if (activated)
+                    {
+                        // logged inside TryActivateAbsoluteDefence
+                        if (uiController != null)
+                            uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+                    }
                 }
             }
         }
@@ -420,11 +499,26 @@ public class PlayerController : MonoBehaviour
             rb.velocity = new Vector3(newHorizontalVelocity.x, velocity.y, newHorizontalVelocity.z);
         }
 
-        // Prevent small bounce on landing: if grounded and moving downward, zero vertical velocity
-        if (isGrounded && rb.velocity.y < 0f)
+        // Miranda passive charge accumulation while Miranda is active (or optionally always)
+        if (miranda != null)
         {
-            rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+            // Free rocket charge builds at FreeRocketChargeSec per second
+            miranda.AddFreeCharge(miranda.FreeRocketChargeSec * Time.fixedDeltaTime);
+            // Guided rocket charge builds at GuidedRocketChargeSec per second
+            miranda.AddGuidedCharge(miranda.GuidedRocketChargeSec * Time.fixedDeltaTime);
+
+            if (uiController != null && activeCharacterType == CharacterType.Miranda)
+            {
+                uiController.SetMirandaGuidedProgress(miranda.GuidedRocketCharge, miranda.GuidedRocketChargeMax);
+                uiController.SetMirandaFreeProgress(miranda.FreeRocketCharge, miranda.MaxFreeRocketCharge);
+            }
         }
+
+        // Update ranged reload timers for characters that have them
+        float dt = Time.fixedDeltaTime;
+        if (erishikgal != null) erishikgal.UpdateRangedTimers(dt);
+        if (ezikiel != null) ezikiel.UpdateRangedTimers(dt);
+        if (miranda != null) miranda.UpdateRangedTimers(dt);
     }
 
     // --- Character Swapping Helpers ---
@@ -445,6 +539,13 @@ public class PlayerController : MonoBehaviour
             else
             {
                 lastFredrickTokenCount = -99;
+            }
+
+            // Show or hide Ezikiel rage UI
+            uiController.ShowEzikielRage(activeCharacterType == CharacterType.Ezikiel);
+            if (activeCharacterType == CharacterType.Ezikiel && ezikiel != null)
+            {
+                uiController.SetEzikielRage((int)ezikiel.MeleeRageCount, (int)ezikiel.RangedRageCount);
             }
         }
     }
@@ -546,8 +647,23 @@ public class PlayerController : MonoBehaviour
     void DoMeleeAttack()
     {
         float damage = GetMeleeDamage();
-        Vector3 center = transform.position + transform.forward * (meleeRange * 0.5f) + Vector3.up * 1f;
+        float rangeForThis = GetMeleeRangeForActive();
+        Vector3 center = transform.position + transform.forward * (rangeForThis * 0.5f) + Vector3.up * 1f;
         Collider[] hits = Physics.OverlapSphere(center, meleeRadius, attackMask);
+
+        // If Ezikiel is active and there will be at least one hit, consume melee-rage (built by ranged attacks)
+        if (activeCharacterType == CharacterType.Ezikiel && ezikiel != null && hits.Length > 0)
+        {
+            float bonus = ezikiel.ConsumeMeleeRageAndGetBonus();
+            if (bonus != 0f)
+            {
+                damage += bonus;
+                Debug.Log($"Ezikiel consumed Melee Rage for +{bonus} melee damage");
+            }
+            if (uiController != null)
+                uiController.SetEzikielRage((int)ezikiel.MeleeRageCount, (int)ezikiel.RangedRageCount);
+        }
+
         foreach (var col in hits)
         {
             if (col == null) continue;
@@ -561,11 +677,47 @@ public class PlayerController : MonoBehaviour
                 if (uiController != null)
                     uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
             }
+
+            // If Ezikiel is the active character, successful melee hit builds a ranged-rage stack
+            if (activeCharacterType == CharacterType.Ezikiel && ezikiel != null)
+            {
+                ezikiel.AddRangedRageOnMelee();
+                if (uiController != null)
+                {
+                    uiController.SetEzikielRage((int)ezikiel.MeleeRageCount, (int)ezikiel.RangedRageCount);
+                }
+            }
         }
         Debug.Log($"Melee attack dealt {damage} to {hits.Length} colliders");
         #if UNITY_EDITOR
         Debug.DrawLine(transform.position + Vector3.up * 1f, center, Color.red, 0.5f);
         #endif
+    }
+
+    // Return the melee range for the currently active character
+    float GetMeleeRangeForActive()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.meleeRange : meleeRange;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.meleeRange : meleeRange;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.meleeRange : meleeRange;
+            case CharacterType.Miranda: return miranda != null ? miranda.meleeRange : meleeRange;
+            default: return meleeRange;
+        }
+    }
+
+    // Return the melee attack delay (seconds) for the currently active character
+    float GetMeleeDelayForActive()
+    {
+        switch (activeCharacterType)
+        {
+            case CharacterType.Erishikgal: return erishikgal != null ? erishikgal.meleeDelay : 0.5f;
+            case CharacterType.Fredrick: return fredrick != null ? fredrick.meleeDelay : 0.5f;
+            case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.meleeDelay : 0.5f;
+            case CharacterType.Miranda: return miranda != null ? miranda.meleeDelay : 0.5f;
+            default: return 0.5f;
+        }
     }
 
     void DoRangedAttack()
@@ -574,6 +726,19 @@ public class PlayerController : MonoBehaviour
         Ray ray = (cam != null) ? new Ray(cam.transform.position, cam.transform.forward) : new Ray(transform.position + Vector3.up * 1f, transform.forward);
         if (Physics.Raycast(ray, out RaycastHit hit, rangedMaxDistance, attackMask))
         {
+            // If Ezikiel is active, consume ranged-rage (built by melee attacks) when the shot hits
+            if (activeCharacterType == CharacterType.Ezikiel && ezikiel != null)
+            {
+                float bonus = ezikiel.ConsumeRangedRageAndGetBonus();
+                if (bonus != 0f)
+                {
+                    damage += bonus;
+                    Debug.Log($"Ezikiel consumed Ranged Rage for +{bonus} ranged damage");
+                }
+                if (uiController != null)
+                    uiController.SetEzikielRage((int)ezikiel.MeleeRageCount, (int)ezikiel.RangedRageCount);
+            }
+
             hit.collider.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
 
             // If Fredrick is the active character, gain charge per successful hit
@@ -582,6 +747,16 @@ public class PlayerController : MonoBehaviour
                 fredrick.AddChargeFromHit();
                 if (uiController != null)
                     uiController.SetFredrickTokens(fredrick.absoluteDefencePoints);
+            }
+
+            // If Ezikiel is the active character, successful ranged hit builds a melee-rage stack
+            if (activeCharacterType == CharacterType.Ezikiel && ezikiel != null)
+            {
+                ezikiel.AddMeleeRageOnRanged();
+                if (uiController != null)
+                {
+                    uiController.SetEzikielRage((int)ezikiel.MeleeRageCount, (int)ezikiel.RangedRageCount);
+                }
             }
 
             Debug.Log($"Ranged attack hit {hit.collider.name} for {damage}");
@@ -646,6 +821,36 @@ public class PlayerController : MonoBehaviour
         float newHealth = Mathf.Max(0f, GetCurrentHealth() - damage);
         SetCurrentHealth(newHealth);
         SetHealthUI();
+
+        // If health reached zero, handle death / respawn
+        if (Mathf.Approximately(newHealth, 0f) || newHealth <= 0f)
+        {
+            HandlePlayerDeath();
+        }
+    }
+
+    // Handle player death: teleport back to spawn and restore active character health
+    void HandlePlayerDeath()
+    {
+        Debug.Log("Player died - respawning at spawn point");
+        // teleport player to spawn position and rotation
+        if (rb != null)
+        {
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.position = spawnPosition;
+        }
+        transform.position = spawnPosition;
+        transform.rotation = spawnRotation;
+
+        // reset some transient states
+        isSliding = false;
+        isBlocking = false;
+        isInfernoActive = false;
+
+        // restore current active character's health to max
+        SetCurrentHealth(GetMaxHealth());
+        SetHealthUI();
     }
 
     float GetMeleeDamage()
@@ -669,6 +874,64 @@ public class PlayerController : MonoBehaviour
             case CharacterType.Ezikiel: return ezikiel != null ? ezikiel.rangedDamage : 0f;
             case CharacterType.Miranda: return miranda != null ? miranda.rangedDamage : 0f;
             default: return 0f;
+        }
+    }
+
+    // Enter target painting mode for Miranda; basic implementation: raycast to select a single enemy under crosshair and spawn a guided rocket that follows it.
+    void EnterMirandaTargetPaintMode()
+    {
+        Debug.Log("Entering Miranda target paint mode");
+        // Simple implementation: immediate select whatever is under the center of the camera and fire a guided rocket prefab that will home in.
+        if (cam == null)
+            return;
+
+        Ray ray = new Ray(cam.transform.position, cam.transform.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, rangedMaxDistance, attackMask))
+        {
+            GameObject target = hit.collider.gameObject;
+            // Spawn guided rocket if prefab exists in Resources/Prefabs/MirandaGuidedRocket
+            GameObject rocketPrefab = Resources.Load<GameObject>("Prefabs/MirandaGuidedRocket");
+            if (rocketPrefab != null)
+            {
+                Vector3 spawnPos = cam.transform.position + cam.transform.forward * 1f;
+                GameObject rocket = Instantiate(rocketPrefab, spawnPos, Quaternion.identity);
+                var homing = rocket.GetComponent<MirandaGuidedRocket>();
+                if (homing != null)
+                {
+                    homing.SetTarget(target.transform);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("Miranda guided rocket prefab not found at Resources/Prefabs/MirandaGuidedRocket");
+            }
+        }
+        else
+        {
+            Debug.Log("No target under crosshair to paint for guided rocket");
+        }
+    }
+
+    // Fire a free rocket if Miranda has one available. This is a simple stub that consumes the free rocket and spawns a rocket prefab.
+    void FireMirandaFreeRocket()
+    {
+        if (miranda == null) return;
+        if (!miranda.ConsumeFreeRocket())
+        {
+            Debug.Log("No free rockets available");
+            return;
+        }
+
+        GameObject rocketPrefab = Resources.Load<GameObject>("Prefabs/MirandaFreeRocket");
+        if (rocketPrefab != null)
+        {
+            Vector3 spawnPos = cam != null ? cam.transform.position + cam.transform.forward * 1f : transform.position + transform.forward * 1f + Vector3.up * 1f;
+            Instantiate(rocketPrefab, spawnPos, Quaternion.LookRotation(cam != null ? cam.transform.forward : transform.forward));
+            Debug.Log("Fired a free Miranda rocket");
+        }
+        else
+        {
+            Debug.LogWarning("Miranda free rocket prefab not found at Resources/Prefabs/MirandaFreeRocket");
         }
     }
 }
